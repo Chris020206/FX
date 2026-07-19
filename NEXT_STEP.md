@@ -8,9 +8,11 @@ Long-range plan: `ROADMAP.md`.
 ## Current step: M1 — Port the Pine detector to Python
 
 - **Opened:** 2026-07-19
-- **Status:** `NOT STARTED`
+- **Status:** `IN PROGRESS` — port implemented and self-run; gate blocked on the
+  TradingView box comparison (trader) and the label-set answer. See
+  `Implementation/M1_PORT_NOTES.md`.
 - **Owner:** Claude Code
-- **Branch:** `m1-detection-port`
+- **Branch:** `M1—port-the-pine-detector-to-python` (owner-requested name; was planned as `m1-detection-port`)
 
 ### Task
 Translate `Detection_Methods/order_blocks_v2 (26.07.17).pine` (373 lines, v2.2) into Python,
@@ -46,16 +48,24 @@ in the PR description, not changed**. Also out of scope: entry, exit, and anythi
 5. Recall against the twelve labelled examples is reported but is **not** the gate. The gate is
    agreement with the Pine.
 
-### Known open question — raise before starting
+### Known open question — RESOLVED 2026-07-19
 The Pine header cites 13 labelled OB events and 17 known examples;
-`main_Tier_1_Examples_v3.xlsx` has 12 rows. These are different label sets. Ask which is
-authoritative rather than assuming.
+`main_Tier_1_Examples_v3.xlsx` has 12 rows. **Trader ruling:
+`main_Tier_1_Examples_v3.xlsx` is the authoritative label set.**
+
+**Flag (flag only — nothing changed):** the Pine's Variation 2 path was
+calibrated including the Jun 11 case, which v3 excludes deliberately. V2's
+evidential support is therefore weaker than the Pine header states — its cited
+V2 validation rests partly on an example outside the authoritative set. The
+detection logic is untouched; this affects how much weight V2 calibration
+claims can carry, and belongs in any future V2 re-validation.
 
 ### Definition of done
-- [ ] Whole Pine file read, tooltips included
-- [ ] Label-set question answered by the trader
-- [ ] Port implemented, no inferred logic
-- [ ] Gate run, result recorded (pass or fail, unadjusted)
+- [x] Whole Pine file read, tooltips included
+- [x] Label-set question answered by the trader — v3 xlsx authoritative; V2 evidence flag recorded above
+- [x] Port implemented, no inferred logic
+- [ ] Gate run, result recorded (pass or fail, unadjusted) *(steps 1 & 4 done —
+  3.28 boxes/day in-window; steps 2–3 need the Pine's TradingView boxes from the trader)*
 - [ ] Divergences from Pine listed individually in the PR
 - [ ] `ROADMAP.md` M1 row updated
 - [ ] This file replaced with the next step
