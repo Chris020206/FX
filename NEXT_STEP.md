@@ -48,14 +48,21 @@ in the PR description, not changed**. Also out of scope: entry, exit, and anythi
 5. Recall against the twelve labelled examples is reported but is **not** the gate. The gate is
    agreement with the Pine.
 
-### Known open question — raise before starting
+### Known open question — RESOLVED 2026-07-19
 The Pine header cites 13 labelled OB events and 17 known examples;
-`main_Tier_1_Examples_v3.xlsx` has 12 rows. These are different label sets. Ask which is
-authoritative rather than assuming.
+`main_Tier_1_Examples_v3.xlsx` has 12 rows. **Trader ruling:
+`main_Tier_1_Examples_v3.xlsx` is the authoritative label set.**
+
+**Flag (flag only — nothing changed):** the Pine's Variation 2 path was
+calibrated including the Jun 11 case, which v3 excludes deliberately. V2's
+evidential support is therefore weaker than the Pine header states — its cited
+V2 validation rests partly on an example outside the authoritative set. The
+detection logic is untouched; this affects how much weight V2 calibration
+claims can carry, and belongs in any future V2 re-validation.
 
 ### Definition of done
 - [x] Whole Pine file read, tooltips included
-- [ ] Label-set question answered by the trader *(raised — see M1_PORT_NOTES.md)*
+- [x] Label-set question answered by the trader — v3 xlsx authoritative; V2 evidence flag recorded above
 - [x] Port implemented, no inferred logic
 - [ ] Gate run, result recorded (pass or fail, unadjusted) *(steps 1 & 4 done —
   3.28 boxes/day in-window; steps 2–3 need the Pine's TradingView boxes from the trader)*
