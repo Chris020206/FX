@@ -80,14 +80,30 @@ overflowed; enumerate that bar by hand). Rows land in TradingView's
 "Export chart data…" CSV for diffing against `output/pine_port_boxes.csv`.
 The working indicator is untouched; the debug plots live only in the copy.
 
-**Compile status: NOT YET VERIFIED.** Three attempts to compile it on
-tradingview.com through the sandboxed in-app browser all hard-froze the page
-the moment "Add to chart" was pressed (anonymous session, FX:GBPJPY 5m; the
-script inserted cleanly each time — 29,779 chars, 426 lines). The trader
-needs to paste the file into their own Pine Editor once: any compile error
-plus the data-window values on 2–3 creation bars is enough to close
-verification. If "Export chart data…" omits the DEBUG columns, change
-`display=display.data_window` to `display=display.all` in the copy only.
+**Compile status: VERIFIED 2026-07-19** in the trader's TradingView account
+(FX:GBPJPY 5m, FXCM feed — the Tier 1 data source). Saved as script
+"Order Blocks v2.2 DEBUG EXPORT (Pivot + Impulse Gate + V2)" (version 1) and
+added to a dedicated layout, "M1 Debug Export". No compile errors. Three
+spot-checks against `output/pine_port_boxes.csv`, one per creation path, all
+exact on count, top, bottom, origin unix-ms, and isV2:
+
+| Bar (UTC) | Path | Expected (port) | TradingView data window |
+|---|---|---|---|
+| 2026-07-10 13:50 | pivot (T1-001) | bear 1x [217.022, 217.090], origin 13:40, isV2 0 | match, origin_ms 1783690800000 |
+| 2026-06-18 14:25 | pending/delayed (T1-008) | bull 1x [212.877, 212.994], origin 14:10, isV2 0 | match, origin_ms 1781791800000 |
+| 2026-06-18 14:45 | V2 | bull 1x [212.904, 212.982], origin 14:40, isV2 1 | match, origin_ms 1781793600000 |
+
+Note: earlier attempts to verify through an anonymous sandboxed browser
+failed because programmatic text insertion let Monaco auto-indent corrupt the
+script; a real clipboard paste inserts it verbatim. Paste via Ctrl+V if the
+script ever needs re-entering.
+
+**Export step (trader):** on the "M1 Debug Export" layout, load the chart
+back to 2026-05-24, then "Export chart data…" — the DEBUG columns carry one
+row per bar. If the export omits them, change `display=display.data_window`
+to `display=display.all` in the copy only. Historical boxes are not visible
+on the chart (the Pine deletes them during replay); the plot columns are the
+comparison record.
 
 ## Flagged, not changed (per NEXT_STEP.md scope rule)
 
