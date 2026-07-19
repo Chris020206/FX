@@ -45,7 +45,7 @@ non-labelled candidates are NOT automatically false positives. Deciding which ar
 precisely the adjudication task.
 
 ## 4. The deliverable that matters
-`output/candidates_tier1_full.csv` — **111 candidates across all three Tier 1 files** (1.0/day),
+`output/candidates_tier1_full.csv` (DELETED) — **111 candidates across all three Tier 1 files** (1.0/day),
 with an empty `adjudication` column. 27 fall on GMT days: adjudicating those tests the DST path
 against human judgment for the first time, since every current label is BST.
 
