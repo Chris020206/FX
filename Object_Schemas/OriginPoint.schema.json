@@ -1,0 +1,120 @@
+{
+  "_status": {
+    "state": "RECONCILIATION_PENDING",
+    "reviewed": "2026-07-19",
+    "reason": "OrderBlockCandidate + OrderBlockZone in GBPJPY_1550_Model_Object_Definitions_v1.0 cover the same concept and split it in two. No mapping exists between the two models and neither has been declared authoritative.",
+    "authority": "main_Tier_1_Examples_v3.xlsx (Definitions sheet) for Tier 1 thresholds and measurement conventions"
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OriginPoint",
+  "description": "The zone marking where a market maker's leftover position from a confirmed Liquidity Sweep is presumed established. See Detection_Methods/Origin_Point_Detection.md.",
+  "type": "object",
+  "required": [
+    "origin_point_id",
+    "direction",
+    "lower_bound",
+    "upper_bound",
+    "source_candle_start",
+    "timeframe",
+    "tier",
+    "detection_method",
+    "confirmation_state",
+    "associated_sweep_id"
+  ],
+  "properties": {
+    "origin_point_id": {
+      "type": "string",
+      "description": "e.g. 'OP-123'"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "bullish",
+        "bearish"
+      ]
+    },
+    "tier": {
+      "type": "string",
+      "enum": [
+        "LOWER_TIMEFRAME",
+        "HIGHER_TIMEFRAME"
+      ],
+      "description": "LOWER_TIMEFRAME (e.g. 15m->5m drill-down) is entry-tied. HIGHER_TIMEFRAME (e.g. 4H->1H) is context/bias-tied, not a direct entry trigger. See Origin_Point_Detection.md's Origin Point Tiers section."
+    },
+    "lower_bound": {
+      "type": "number",
+      "description": "Default convention: origin candle's low (full range, not body). See Origin_Point_Detection.md's Zone Boundaries section — this is a flagged default pending confirmation."
+    },
+    "upper_bound": {
+      "type": "number",
+      "description": "Default convention: origin candle's high."
+    },
+    "source_candle_start": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC open time of the origin candle."
+    },
+    "timeframe": {
+      "type": "string",
+      "description": "Timeframe the origin candle was identified on — may differ from the associated sweep's reference_timeframe."
+    },
+    "detection_method": {
+      "type": "string",
+      "enum": [
+        "gap_based",
+        "displacement_based"
+      ],
+      "description": "Which qualifying-impulse rule fired: gap_based (primary, via Inefficiency) or displacement_based (fallback, via swing_threshold)."
+    },
+    "confirmation_state": {
+      "type": "string",
+      "enum": [
+        "PROVISIONAL",
+        "CONFIRMED",
+        "INVALIDATED"
+      ],
+      "description": "Three-value state, distinct from ReferenceLevel's two-value CONFIRMED/PROVISIONAL. INVALIDATED is distinct from Mitigation's MITIGATED — see Origin_Point_Detection.md's Invalidation Rule."
+    },
+    "associated_sweep_id": {
+      "type": "string",
+      "description": "Links back to the Liquidity Sweep instance that produced this origin_point."
+    },
+    "mitigation_state": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "UNMITIGATED",
+        "PARTIALLY_MITIGATED",
+        "MITIGATED",
+        null
+      ],
+      "description": "Tracked by Mitigation, referenced here for convenience; Mitigation is the source of truth."
+    },
+    "approach_depth": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "AKA fill_ratio, mirrored here for convenience from MitigationState (that object is the source of truth). Entry threshold is zone-width dependent: 0.25 for a single-candle zone, 0.50 for a widened block — see Mitigation.md Calibration Evidence, not a fixed 0.75/0.50 tier."
+    },
+    "observability": {
+      "type": "string",
+      "enum": [
+        "CALCULATED",
+        "INFERRED"
+      ],
+      "description": "The zone/candle itself is CALCULATED; its meaning as a leftover position is INFERRED."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "model_version": {
+      "type": "string"
+    }
+  }
+}

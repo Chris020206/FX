@@ -1,0 +1,115 @@
+{
+  "_status": {
+    "state": "RECONCILIATION_PENDING",
+    "reviewed": "2026-07-19",
+    "reason": "Absent from the GBPJPY_1550 object model entirely. Confirm whether that is deliberate scoping or an omission.",
+    "authority": "main_Tier_1_Examples_v3.xlsx (Definitions sheet) for Tier 1 thresholds and measurement conventions"
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InefficiencyInstance",
+  "description": "A detected gap/imbalance. See Domain_Model/Liquidation_Logic/Inefficiency.md and Detection_Methods/Inefficiency_Detection.md.",
+  "type": "object",
+  "required": [
+    "inefficiency_id",
+    "direction",
+    "gap_lower_bound",
+    "gap_upper_bound",
+    "timeframe",
+    "state",
+    "source_candles"
+  ],
+  "properties": {
+    "inefficiency_id": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "bullish",
+        "bearish"
+      ]
+    },
+    "gap_lower_bound": {
+      "type": "number"
+    },
+    "gap_upper_bound": {
+      "type": "number"
+    },
+    "timeframe": {
+      "type": "string",
+      "enum": [
+        "1D",
+        "4H",
+        "15m"
+      ],
+      "description": "Scope restricted to these three per Inefficiency.md's resolved Market Model Assumptions."
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "OPEN",
+        "PARTIALLY_FILLED",
+        "FULLY_FILLED"
+      ]
+    },
+    "fill_depth": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Continuous measure, same pattern as Mitigation's approach_depth."
+    },
+    "source_candles": {
+      "type": "object",
+      "properties": {
+        "c1_start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "c2_start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "c3_start": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "c1_start",
+        "c2_start",
+        "c3_start"
+      ]
+    },
+    "associated_sweep_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Null if formed via the sparse-liquidity edge case rather than a Liquidity Sweep."
+    },
+    "cause": {
+      "type": "string",
+      "enum": [
+        "liquidity_sweep",
+        "sparse_liquidity"
+      ],
+      "description": "Per Inefficiency.md's two recognized causes."
+    },
+    "observability": {
+      "type": "string",
+      "enum": [
+        "CALCULATED",
+        "INFERRED"
+      ],
+      "description": "The gap's existence/bounds are CALCULATED; the 'unresolved order-flow imbalance' interpretation is INFERRED."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "model_version": {
+      "type": "string"
+    }
+  }
+}

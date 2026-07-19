@@ -1,0 +1,81 @@
+{
+  "_status": {
+    "state": "RECONCILIATION_PENDING",
+    "reviewed": "2026-07-19",
+    "reason": "MitigationEvent in GBPJPY_1550_Model_Object_Definitions_v1.0 models this as an event rather than a tracker. This file's Tracker semantics are what Event_Model.md's cycle-breaking depends on.",
+    "authority": "main_Tier_1_Examples_v3.xlsx (Definitions sheet) for Tier 1 thresholds and measurement conventions"
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MitigationState",
+  "description": "State tracker for an OriginPoint's mitigation progress. This is a Tracker object in the Event/Tracker/Evaluator separation — it reads OriginPoint (created by a SweepEvent) and updates independently as price moves, rather than OriginPoint and Mitigation importing each other directly. See Domain_Model/Event_Model.md.",
+  "type": "object",
+  "required": [
+    "origin_point_id",
+    "mitigation_state",
+    "approach_depth"
+  ],
+  "properties": {
+    "origin_point_id": {
+      "type": "string",
+      "description": "The OriginPoint this tracker is watching."
+    },
+    "mitigation_state": {
+      "type": "string",
+      "enum": [
+        "UNMITIGATED",
+        "PARTIALLY_MITIGATED",
+        "MITIGATED"
+      ]
+    },
+    "approach_depth": {
+      "type": "number",
+      "minimum": 0,
+      "description": "AKA fill_ratio: percentage of the zone covered, measured from the entry side toward the far side. 0=barely touched, 1.0=fully reached the far boundary. Can exceed 1.0 if price fully clears through. Mirror image of the person's own high=1/low=0 convention (fill_ratio = 1 - their_level)."
+    },
+    "zone_width_type": {
+      "type": "string",
+      "enum": [
+        "single_candle",
+        "widened_block"
+      ],
+      "description": "Which entry threshold applies: single_candle origin zones need fill_ratio>=0.25 to MEET_THRESHOLD; widened_block (e.g. 15m refinement per Origin Point Detection) needs fill_ratio>=0.50. See Mitigation.md Calibration Evidence."
+    },
+    "meets_threshold": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True once fill_ratio crosses the applicable threshold for zone_width_type. This is the actionable signal, not just approach_depth alone."
+    },
+    "mitigated_via": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "return_to_level",
+        "further_loss",
+        null
+      ],
+      "description": "Both are terminal MITIGATED per Mitigation.md; tracked here for future use even though not currently distinguished downstream."
+    },
+    "mitigated_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "observability": {
+      "type": "string",
+      "enum": [
+        "CALCULATED",
+        "INFERRED"
+      ],
+      "description": "approach_depth is CALCULATED; the claim this reflects a real leftover position being closed is INFERRED."
+    },
+    "model_version": {
+      "type": "string"
+    }
+  }
+}

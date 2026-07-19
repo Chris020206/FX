@@ -1,0 +1,110 @@
+{
+  "_status": {
+    "state": "RECONCILIATION_PENDING",
+    "reviewed": "2026-07-19",
+    "reason": "Named LiquiditySweepEvent in GBPJPY_1550_Model_Object_Definitions_v1.0. Naming only, but unresolved.",
+    "authority": "main_Tier_1_Examples_v3.xlsx (Definitions sheet) for Tier 1 thresholds and measurement conventions"
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SweepEvent",
+  "description": "An event object representing a confirmed Liquidity Sweep. Part of the Event/Tracker/Evaluator separation that resolves the circular dependency between Liquidity Sweep and Mitigation/Efficient Price — see Domain_Model/Event_Model.md.",
+  "type": "object",
+  "required": [
+    "sweep_id",
+    "classification",
+    "opposing_pool_id",
+    "target_pool_id",
+    "direction",
+    "confirmed_at",
+    "reference_timeframe"
+  ],
+  "properties": {
+    "sweep_id": {
+      "type": "string",
+      "description": "e.g. 'SW-456'"
+    },
+    "classification": {
+      "type": "string",
+      "enum": [
+        "SWEEP",
+        "GRAB",
+        "CONTINUATION"
+      ],
+      "description": "GRAB is a sub-type of SWEEP (single-candle case); CONTINUATION means the precondition/pattern was not met."
+    },
+    "opposing_pool_id": {
+      "type": "string",
+      "description": "Links to the LiquidityPool instance swept through first."
+    },
+    "target_pool_id": {
+      "type": "string",
+      "description": "Links to the LiquidityPool instance being driven toward."
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "bullish",
+        "bearish"
+      ]
+    },
+    "sweep_duration_candles": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "confirmed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp of the close that confirmed the reversal."
+    },
+    "reference_timeframe": {
+      "type": "string"
+    },
+    "precondition_check": {
+      "type": "object",
+      "description": "Efficient Price status for prior sweeps on 4H+ at the time this sweep was evaluated.",
+      "properties": {
+        "efficient_price_state": {
+          "type": "string",
+          "enum": [
+            "EFFICIENT",
+            "INEFFICIENT"
+          ]
+        },
+        "checked_reference_range_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "produces_origin_point_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "produces_inefficiency_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "observability": {
+      "type": "string",
+      "enum": [
+        "CALCULATED",
+        "INFERRED"
+      ],
+      "description": "The zone-entry/close-based reversal is CALCULATED; the claim this reflects deliberate market-maker action is INFERRED."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "model_version": {
+      "type": "string"
+    }
+  }
+}

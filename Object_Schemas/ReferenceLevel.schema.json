@@ -1,0 +1,99 @@
+{
+  "_status": {
+    "state": "RECONCILIATION_PENDING",
+    "reviewed": "2026-07-19",
+    "reason": "Absent from the GBPJPY_1550 object model entirely. Confirm whether that is deliberate scoping or an omission.",
+    "authority": "main_Tier_1_Examples_v3.xlsx (Definitions sheet) for Tier 1 thresholds and measurement conventions"
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReferenceLevel",
+  "description": "Common interface for any price reference point, regardless of which Detection Method produced it. See Domain_Model/Structure/Reference_Level.md.",
+  "type": "object",
+  "required": [
+    "id",
+    "level_type",
+    "price",
+    "timeframe",
+    "confirmation_state",
+    "source_method",
+    "observability",
+    "confidence"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier, e.g. 'RL-1042'"
+    },
+    "level_type": {
+      "type": "string",
+      "enum": [
+        "ATR_SWING_HIGH",
+        "ATR_SWING_LOW",
+        "SESSION_HIGH",
+        "SESSION_LOW",
+        "PREVIOUS_DAY_HIGH",
+        "PREVIOUS_DAY_LOW",
+        "PREVIOUS_WEEK_HIGH",
+        "PREVIOUS_WEEK_LOW",
+        "CANDLE_HIGH",
+        "CANDLE_LOW",
+        "EQUAL_HIGHS_ZONE",
+        "EQUAL_LOWS_ZONE"
+      ],
+      "description": "Extensible enum. New Detection Methods may introduce new values without changing this schema's structure."
+    },
+    "price": {
+      "type": "number"
+    },
+    "timeframe": {
+      "type": "string",
+      "description": "e.g. '1D', '4H', '15m', '1m'"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC. When the underlying session/candle/swing leg began."
+    },
+    "confirmation_state": {
+      "type": "string",
+      "enum": [
+        "CONFIRMED",
+        "PROVISIONAL"
+      ],
+      "description": "Meaning is method-dependent — see source_method and the producing Detection Method's own definition. Not directly comparable across level_types."
+    },
+    "source_method": {
+      "type": "string",
+      "enum": [
+        "ATR_SWING_DETECTION",
+        "SESSION_LEVEL_DETECTION"
+      ],
+      "description": "Which Detection Method produced this instance."
+    },
+    "validity_period": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "How long this level remains a live reference before being superseded or expiring. Method-dependent; null if not applicable."
+    },
+    "observability": {
+      "type": "string",
+      "enum": [
+        "OBSERVED",
+        "CALCULATED",
+        "INFERRED"
+      ],
+      "description": "Per the Epistemic Status standard. A level's price/location is typically CALCULATED; its classification as 'liquidity' by a separate consumer is INFERRED and not part of this object."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "model_version": {
+      "type": "string",
+      "description": "Version of the calibration/logic that produced this instance."
+    }
+  }
+}

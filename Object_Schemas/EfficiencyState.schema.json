@@ -1,0 +1,74 @@
+{
+  "_status": {
+    "state": "RECONCILIATION_PENDING",
+    "reviewed": "2026-07-19",
+    "reason": "Absent from the GBPJPY_1550 object model entirely. Confirm whether that is deliberate scoping or an omission.",
+    "authority": "main_Tier_1_Examples_v3.xlsx (Definitions sheet) for Tier 1 thresholds and measurement conventions"
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EfficiencyState",
+  "description": "State tracker (Evaluator input) reading InefficiencyInstance and MitigationState together to derive Efficient Price status. Reading two trackers rather than Liquidity Sweep and Efficient Price importing each other directly is what breaks the circular dependency — see Domain_Model/Event_Model.md.",
+  "type": "object",
+  "required": [
+    "reference_region_id",
+    "efficient_price_state",
+    "inefficiency_id",
+    "origin_point_id"
+  ],
+  "properties": {
+    "reference_region_id": {
+      "type": "string",
+      "description": "Identifies the paired inefficiency/origin_point region this state describes."
+    },
+    "efficient_price_state": {
+      "type": "string",
+      "enum": [
+        "EFFICIENT",
+        "INEFFICIENT"
+      ]
+    },
+    "inefficiency_id": {
+      "type": "string"
+    },
+    "origin_point_id": {
+      "type": "string"
+    },
+    "inefficiency_state": {
+      "type": "string",
+      "enum": [
+        "OPEN",
+        "PARTIALLY_FILLED",
+        "FULLY_FILLED"
+      ],
+      "description": "Mirrors InefficiencyInstance.state for convenience; that object is the source of truth."
+    },
+    "mitigation_state": {
+      "type": "string",
+      "enum": [
+        "UNMITIGATED",
+        "PARTIALLY_MITIGATED",
+        "MITIGATED"
+      ],
+      "description": "Mirrors MitigationState.mitigation_state for convenience; that object is the source of truth."
+    },
+    "resolved_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When both conditions became true (state became EFFICIENT)."
+    },
+    "observability": {
+      "type": "string",
+      "enum": [
+        "CALCULATED",
+        "INFERRED"
+      ],
+      "description": "EFFICIENT/INEFFICIENT is CALCULATED from the two component states; the claim that this reveals a pre-existing pool as a clean target is INFERRED (see Efficient_Price.md)."
+    },
+    "model_version": {
+      "type": "string"
+    }
+  }
+}

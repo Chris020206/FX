@@ -1,0 +1,95 @@
+{
+  "_status": {
+    "state": "RECONCILIATION_PENDING",
+    "reviewed": "2026-07-19",
+    "reason": "NAME COLLISION. GBPJPY_1550_Model_Object_Definitions_v1.0 defines a different object under the same name, without hard_rules / soft_confluence. An implementer picking either one silently breaks the other.",
+    "authority": "main_Tier_1_Examples_v3.xlsx (Definitions sheet) for Tier 1 thresholds and measurement conventions"
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StrategyCandidate",
+  "description": "Output of a Strategy Library's eligibility evaluator (e.g. SweepEligibilityEvaluator) — reads Event and Tracker objects to determine whether a setup is a live candidate. This is the object the AI reasoning layer (per Architecture.md) actually receives, not raw Domain Model concepts.",
+  "type": "object",
+  "required": [
+    "candidate_id",
+    "strategy_name",
+    "status",
+    "hard_rules",
+    "generated_at"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string"
+    },
+    "strategy_name": {
+      "type": "string",
+      "description": "e.g. '3:50 Scalp', 'Liquidate to Rebalance'"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "invalidated",
+        "confirmed_entry",
+        "expired"
+      ]
+    },
+    "hard_rules": {
+      "type": "object",
+      "description": "Every HARD_GATE rule_type item for this strategy, evaluated as booleans. Hard rules stay in code and must not be overridden by the AI layer — see AI_Policy/Responsibilities.md.",
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "soft_confluence": {
+      "type": "array",
+      "description": "Every SOFT_CONFLUENCE rule_type item for this strategy, as weighted signals rather than booleans.",
+      "items": {
+        "type": "object",
+        "required": [
+          "factor_name",
+          "direction",
+          "weight"
+        ],
+        "properties": {
+          "factor_name": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "supporting",
+              "opposing"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "epistemic_status": {
+            "type": "string",
+            "enum": [
+              "HEURISTIC",
+              "ASSUMED",
+              "INFERRED"
+            ]
+          }
+        }
+      }
+    },
+    "referenced_events": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs of SweepEvent/OriginPoint/InefficiencyInstance objects this candidate is built from."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "model_version": {
+      "type": "string"
+    }
+  }
+}
