@@ -81,9 +81,9 @@ semantics, not suspected defects in the Pine.
 1. **Label set.** The Pine header cites 13 labelled OB events / 17 known
    examples (including a Jun 11 Variation-2 case); `main_Tier_1_Examples_v3.xlsx`
    has 12 rows and no Jun 11 row. Which set is authoritative for M1 reporting?
-2. **Repo hygiene discrepancy (found during review, unrelated to M1).**
-   `CHANGES_2026-07-19.md` Addendum 3 records Tier 3, `dataset main - repaired.csv`
-   and the old `candidates_tier1_full.csv` as deleted, but all are still present
-   and tracked in git — the M0 deletions were never committed. Tier 3 is
-   supposed to be physically absent per `Standards/Decision_Log.md`. Not touched
-   here; needs an explicit decision.
+2. **Repo hygiene discrepancy — RESOLVED 2026-07-19.** `CHANGES_2026-07-19.md`
+   Addendum 3 recorded Tier 3, `dataset main - repaired.csv` and the old
+   `candidates_tier1_full.csv` as deleted, but the deletions were never
+   committed. The repo owner moved Tier 3 out of the local folder and
+   authorised the commit; all five files are now removed from git. Tier 3 is
+   physically absent, as `Standards/Decision_Log.md` requires.
