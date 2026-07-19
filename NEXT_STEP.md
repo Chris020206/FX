@@ -8,9 +8,11 @@ Long-range plan: `ROADMAP.md`.
 ## Current step: M1 — Port the Pine detector to Python
 
 - **Opened:** 2026-07-19
-- **Status:** `NOT STARTED`
+- **Status:** `IN PROGRESS` — port implemented and self-run; gate blocked on the
+  TradingView box comparison (trader) and the label-set answer. See
+  `Implementation/M1_PORT_NOTES.md`.
 - **Owner:** Claude Code
-- **Branch:** `m1-detection-port`
+- **Branch:** `M1—port-the-pine-detector-to-python` (owner-requested name; was planned as `m1-detection-port`)
 
 ### Task
 Translate `Detection_Methods/order_blocks_v2 (26.07.17).pine` (373 lines, v2.2) into Python,
@@ -52,10 +54,11 @@ The Pine header cites 13 labelled OB events and 17 known examples;
 authoritative rather than assuming.
 
 ### Definition of done
-- [ ] Whole Pine file read, tooltips included
-- [ ] Label-set question answered by the trader
-- [ ] Port implemented, no inferred logic
-- [ ] Gate run, result recorded (pass or fail, unadjusted)
+- [x] Whole Pine file read, tooltips included
+- [ ] Label-set question answered by the trader *(raised — see M1_PORT_NOTES.md)*
+- [x] Port implemented, no inferred logic
+- [ ] Gate run, result recorded (pass or fail, unadjusted) *(steps 1 & 4 done —
+  3.28 boxes/day in-window; steps 2–3 need the Pine's TradingView boxes from the trader)*
 - [ ] Divergences from Pine listed individually in the PR
 - [ ] `ROADMAP.md` M1 row updated
 - [ ] This file replaced with the next step

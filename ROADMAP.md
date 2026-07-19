@@ -12,7 +12,7 @@ Module map follows `Architecture.md`'s components. A module is DONE only when it
 | # | Module | State | Blocked by |
 |---|---|---|---|
 | M0 | Repo hygiene & guardrails | **DONE** 2026-07-19 | — |
-| M1 | Detection engine | not started | — |
+| M1 | Detection engine | in progress — port done, gate pending Pine comparison | trader: TradingView boxes + label-set answer |
 | M2 | Entry engine | logic validated, unwired | M1 |
 | M3 | Trade management | **specification missing** | trader input |
 | M4 | Backtest & evaluation | protocol written, no code | M1, M2, M3 |
