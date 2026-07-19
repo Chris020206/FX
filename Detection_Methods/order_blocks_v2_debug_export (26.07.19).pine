@@ -1,0 +1,426 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © order blocks v2.2 — DEBUG EXPORT COPY (2026-07-19). NOT the working indicator.
+// Purpose: expose every box creation as plot() series so boxes can be exported via
+// TradingView's "Export chart data…" for the M1 gate comparison against the Python port
+// (Implementation/output/pine_port_boxes.csv). Detection logic is identical to
+// order_blocks_v2 (26.07.17).pine — the ONLY additions are the lines marked // DEBUG.
+// Export columns per bar: for each side, up to two creations (top/bot/origin unix-ms/isV2)
+// plus a created-count. A count > 2 on any bar means a slot overflowed — flag that bar.
+// Plots use display.data_window so the chart scale is unaffected; if your export dialog
+// omits them, change `display=display.data_window` to `display=display.all` below.
+
+//@version=5
+indicator("Order Blocks v2.2 DEBUG EXPORT (Pivot + Impulse Gate + V2)", overlay=true, max_boxes_count=500, max_lines_count=500)
+
+// ───────────────────────────── INPUTS ─────────────────────────────
+grp_detect = "Detection"
+pivotK        = input.int(2, "Pivot Lookback (bars each side)", minval=1, maxval=10, group=grp_detect,
+                 tooltip="Candle must have the highest high / lowest low within K bars on each side to qualify as a swing point. Lower = more candidates, more noise. k=2 was the best recall/noise tradeoff against the calibration dataset (13/17 known examples, ~27% of candles flagged).")
+stackDepth    = input.int(0, "Stacked Run Backfill (0 = off)", minval=0, maxval=5, group=grp_detect,
+                 tooltip="After finding a pivot, also mark up to N preceding candles that form a monotonic run into it (each sets a new local extreme vs. the one before). Needed to catch clustered OBs (e.g. 3 down-candles in a row before a move), but raises noise fast — depth 2 alone pushed flagged candles from 27% to ~65% in testing. Use sparingly. When the impulse gate below is on, the gate is evaluated on the pivot candle only; a passing pivot's backfilled run inherits validity (the run is treated as one zone, matching how clustered 15m blocks were labeled).")
+dispGateATR   = input.float(1.5, "Impulse Gate: Min Displacement (x ATR, 0 = off)", minval=0.0, step=0.05, group=grp_detect,
+                 tooltip="A pivot only becomes an OB if some candle CLOSE within the next N bars (below) displaces at least this many ATR(14) from the pivot's extreme (low for bullish, high for bearish). This is the Domain Model's fallback qualifying-impulse rule (Origin_Point_Detection, rule 2: k=1.5, n=14, 3 candles), relaxed by dropping its 'every candle closes in the reversal direction' condition — the strict form rejected 5 of the 13 known labeled events, because real reversal legs often contain one mixed candle. At 1.5, all 13 labeled events pass (thinnest example: 1.64xATR — note the ~9% margin, N=13; re-validate on reserved data). Cut boxes shown per window from 5.26 to 3.10/day in testing.")
+dispGateBars  = input.int(3, "Impulse Gate: Window (bars after origin)", minval=1, maxval=6, group=grp_detect,
+                 tooltip="How many candles after the origin candle the displacement may occur in. 3 matches the Domain Model's qualifying-impulse rule. If this exceeds pivotK, box creation is delayed by up to (window - pivotK) bars for pivots that only pass the gate late — with defaults (K=2, window=3) that's at most one extra 5m bar, harmless since mitigations in the labeled data arrive 30-90 min after origin.")
+minZoneATR    = input.float(0.75, "Min Zone Size (x ATR at origin, 0 = off)", minval=0.0, step=0.05, group=grp_detect,
+                 tooltip="Skip pivot candles whose full high-low range is smaller than this many ATR(14) — tiny dimples in flat consolidation are not meaningful origin zones. All 13 labeled examples have zones >= 0.87xATR, so 0.75 keeps full recall with ~16% margin (N=13; re-validate on reserved data).")
+
+grp_v2 = "Variation 2 (origin forms in-window, mitigated later)"
+enableV2      = input.bool(true, "Detect Variation 2 Order Blocks", group=grp_v2,
+                 tooltip="3:50 Scalp Entry Model, Variation 2: the origin_point forms INSIDE the window and is mitigated later, sometimes hours later (e.g. Jun 11: origin ~16:00, mitigated 18:20). Pattern: a candle in the formation window sweeps the previous candle's extreme, closes in the opposing direction, and the NEXT candle closes beyond its full range — that next-candle close IS the qualifying impulse, so these bypass the pivot + displacement gates entirely (e.g. the 17 Apr example displaces only 1.41xATR and would otherwise never be detected). Confirms one bar after the origin — faster than pivot confirmation. Drawn with a DASHED border so the two variations are visually distinct.")
+v2Window      = input.session("1540-1605", "Formation Window", group=grp_v2,
+                 tooltip="The 3:50 Scalp's valid sweep/reversal formation window, 15:40-16:00 UK time. The session end is exclusive for bar open times, so 1605 is needed to include the candle opening at 16:00 (the Jun 11 case). Uses the Timezone setting from Display Window.")
+keepV2Visible = input.bool(true, "Keep Variation 2 boxes visible after the window", group=grp_v2,
+                 tooltip="A Variation 2 box's mitigation — the entry trigger — arrives after the display window closes (16:35, 17:30, and 18:20 in the verified examples), so hiding it at 16:15 makes it untradeable. When on, any box whose origin candle sits inside the Formation Window stays displayed until mitigated, aged out, or the day ends. Applies regardless of which detection path created the box: Variation 2 is defined by origin timing, not by the detector.")
+
+grp_box = "Box Display"
+bullColor     = input.color(color.new(color.teal, 70), "Bullish OB Color", group=grp_box)
+bearColor     = input.color(color.new(color.red, 70), "Bearish OB Color", group=grp_box)
+borderWidth   = input.int(1, "Box Border Width", minval=1, maxval=4, group=grp_box)
+extendBars    = input.int(25, "Box Extend (bars to the right, if not mitigated)", minval=1, group=grp_box)
+maxBoxesShown = input.int(30, "Max Active Boxes Shown (each side)", minval=1, maxval=150, group=grp_box)
+
+grp_act = "Activation (prevents instant false mitigation)"
+requireActivation = input.bool(true, "Require displacement away from zone before mitigation can trigger", group=grp_act,
+                 tooltip="An OB is just-formed price — the very next candle often still overlaps it, which isn't mitigation, just price not having left yet. When on, an OB must first close cleanly beyond its own zone before any later return into the zone counts as mitigated.")
+activationMethod = input.string("Wick", "Activation Trigger", options=["Close", "Wick"], group=grp_act,
+                 tooltip="Wick: a wick beyond the edge counts as displacement (default — Close was found to leave boxes permanently 'stuck' whenever price wicked cleanly through a zone without ever closing beyond it, e.g. sweep-and-reverse candles). Close: stricter, requires a candle CLOSE beyond the zone edge.")
+activationBufferATR = input.float(0.0, "Extra Activation Buffer (x ATR)", minval=0.0, step=0.1, group=grp_act,
+                 tooltip="0 = must just clear the zone edge. >0 requires price to clear the edge by an extra multiple of ATR(14), for a more convincing displacement before the OB is considered live.")
+
+grp_mit = "Mitigation"
+mitigationMethod = input.string("Wick", "Mitigation Trigger", options=["Wick", "Close"], group=grp_mit,
+                 tooltip="Wick: any touch into the OB zone counts as mitigated. Close: only a candle CLOSE inside the zone counts.")
+mitigationFillPct = input.float(25, "Minimum Fill % to Count as Mitigated", minval=0, maxval=100, step=5, group=grp_mit,
+                 tooltip="0 = any touch mitigates. Default of 25% matches the calibrated single-candle-zone threshold from the Domain Model (validated against 11 real GBP/JPY examples). Note: this indicator only builds single-candle zones, not the widened-15m zones that use a 50% threshold in the Domain Model — if you later add 15m zone widening here, that variant should use 50 instead.")
+
+grp_session = "Display Window"
+useSessionFilter = input.bool(true, "Only display boxes during this window", group=grp_session,
+                 tooltip="Detection and mitigation tracking still run on every bar regardless (so state stays accurate) — this only controls when boxes are actually drawn on the chart.")
+sessionWindow = input.session("1515-1615", "Time Window", group=grp_session)
+sessionTZ     = input.string("Europe/London", "Timezone", group=grp_session,
+                 tooltip="IANA timezone name — Europe/London automatically tracks UK clock time through the BST/GMT switch, so the window stays aligned to UK 15:15-16:15 year-round. The previous fixed 'UTC+1' default was correct during British Summer Time but one hour off (window effectively 14:15-15:15 UK) from late October to late March. A fixed offset like 'UTC+1' still works here if ever needed, but Europe/London is the right default for this strategy.")
+useProximityFilter = input.bool(false, "Only display boxes near current price", group=grp_session,
+                 tooltip="When on, a box is only drawn while its zone is within the ATR distance below of the current close (detection and mitigation tracking still run regardless). Matches how the 3:50 setup actually uses zones — in the labeled data, the traded OB is always the one price returns to, so every known example stays visible at the moment it matters, while far-away noise is hidden (FP box-days 34 -> 26 in testing on top of the detection gates). Default OFF because boxes appear/disappear as price moves, which changes chart behavior noticeably — enable if you prefer a quieter chart over persistent boxes.")
+proximityATR  = input.float(1.5, "Proximity Distance (x ATR)", minval=0.1, step=0.1, group=grp_session,
+                 tooltip="Max distance from current close to the nearest zone edge (0 if price is inside the zone) for a box to be drawn, in ATR(14) multiples. Only used when the proximity filter is on.")
+maxAgeHours   = input.float(3.0, "Max OB Age (hours, 0 = unlimited)", minval=0.0, step=0.5, group=grp_session,
+                 tooltip="Deletes an OB once it's older than this, regardless of mitigation status. Without this, boxes formed overnight or early morning can still be sitting on the chart during the afternoon session, which has nothing to do with a same-session setup. 3h was chosen so boxes from London-open volatility can still carry into a mid-afternoon window; tighten this if you only want same-session origin points.")
+
+grp_alert = "Alerts"
+alertOnNewOB   = input.bool(true, "Alert on new Order Block formed", group=grp_alert)
+alertOnMit     = input.bool(true, "Alert on Order Block mitigated", group=grp_alert)
+
+// ───────────────────────────── STATE ─────────────────────────────
+type OB
+    box   b
+    float top
+    float bot
+    bool  isBull
+    bool  mitigated
+    bool  activated
+    int   startBar
+    int   originTime
+    int   createdBar
+    bool  isV2      // origin candle sits inside the Variation 2 formation window
+    float actEdge   // na = standard activation vs. the zone edge; non-na = strict Variation 2
+                    // activation: a candle CLOSE beyond this level (the confirmation candle's
+                    // extreme) is required before returns into the zone count as mitigation
+
+// A pivot that hasn't yet passed (or exhausted) the impulse gate window. Only needed when
+// dispGateBars > pivotK: the gate may be satisfied by a candle that arrives after the pivot's
+// confirmation bar, so the candidate is parked here and re-checked each bar until the window closes.
+type Pending
+    int  originBar
+    bool isBull
+
+var OB[] bullBoxes = array.new<OB>()
+var OB[] bearBoxes = array.new<OB>()
+var Pending[] pendingCandidates = array.new<Pending>()
+
+// DEBUG: per-bar record of every box created on this bar, captured inside createOB.
+// Cleared at the start of each bar; read by the export plots at the bottom of the file.
+var float[] dbgBullTop  = array.new_float()  // DEBUG
+var float[] dbgBullBot  = array.new_float()  // DEBUG
+var float[] dbgBullTime = array.new_float()  // DEBUG — origin bar open time, unix ms
+var float[] dbgBullV2   = array.new_float()  // DEBUG — 1 = isV2, 0 = not
+var float[] dbgBearTop  = array.new_float()  // DEBUG
+var float[] dbgBearBot  = array.new_float()  // DEBUG
+var float[] dbgBearTime = array.new_float()  // DEBUG
+var float[] dbgBearV2   = array.new_float()  // DEBUG
+
+array.clear(dbgBullTop)   // DEBUG
+array.clear(dbgBullBot)   // DEBUG
+array.clear(dbgBullTime)  // DEBUG
+array.clear(dbgBullV2)    // DEBUG
+array.clear(dbgBearTop)   // DEBUG
+array.clear(dbgBearBot)   // DEBUG
+array.clear(dbgBearTime)  // DEBUG
+array.clear(dbgBearV2)    // DEBUG
+
+atr14 = ta.atr(14)
+inSession = not useSessionFilter or not na(time(timeframe.period, sessionWindow, sessionTZ))
+inV2Window = not na(time(timeframe.period, v2Window, sessionTZ))  // series: bar's open time in formation window
+
+// ───────────────────────────── PIVOT DETECTION ─────────────────────────────
+// Confirmed pivotK bars after the fact (standard non-repainting pivot behavior).
+ph = ta.pivothigh(high, pivotK, pivotK)
+pl = ta.pivotlow(low, pivotK, pivotK)
+
+// ───────────────────────────── OB CREATION (with optional stacked backfill) ─────────────────────────────
+// The Variation 2 path confirms one bar after the origin while the pivot path confirms pivotK
+// bars after it, so the same origin candle can be found by both — this guard keeps them from
+// creating duplicate boxes for one candle.
+originExists(int absBar, bool isBull) =>
+    arr = isBull ? bullBoxes : bearBoxes
+    found = false
+    if array.size(arr) > 0
+        for i = 0 to array.size(arr) - 1
+            if array.get(arr, i).startBar == absBar
+                found := true
+    found
+
+createOB(int barOffset, bool isBull, float v2ActEdge) =>
+    absBar = bar_index - barOffset
+    if not originExists(absBar, isBull)
+        obTop = high[barOffset]
+        obBot = low[barOffset]
+        isV2 = inV2Window[barOffset]
+        newBox = box.new(absBar, obTop, bar_index + extendBars, obBot,
+                     border_color=color.new(isBull ? bullColor : bearColor, 0), border_width=borderWidth,
+                     border_style=isV2 ? line.style_dashed : line.style_solid,
+                     bgcolor=isBull ? bullColor : bearColor, extend=extend.none)
+        newOB = OB.new(newBox, obTop, obBot, isBull, false, not requireActivation, absBar, time[barOffset], bar_index, isV2, v2ActEdge)
+        if isBull
+            array.push(bullBoxes, newOB)
+            array.push(dbgBullTop, obTop)                 // DEBUG
+            array.push(dbgBullBot, obBot)                 // DEBUG
+            array.push(dbgBullTime, float(time[barOffset]))  // DEBUG
+            array.push(dbgBullV2, isV2 ? 1.0 : 0.0)       // DEBUG
+            if array.size(bullBoxes) > maxBoxesShown
+                box.delete(array.shift(bullBoxes).b)
+        else
+            array.push(bearBoxes, newOB)
+            array.push(dbgBearTop, obTop)                 // DEBUG
+            array.push(dbgBearBot, obBot)                 // DEBUG
+            array.push(dbgBearTime, float(time[barOffset]))  // DEBUG
+            array.push(dbgBearV2, isV2 ? 1.0 : 0.0)       // DEBUG
+            if array.size(bearBoxes) > maxBoxesShown
+                box.delete(array.shift(bearBoxes).b)
+        if alertOnNewOB
+            alert((isV2 ? "Variation 2 " : "") + (isBull ? "Bullish" : "Bearish") + " Order Block formed", alert.freq_once_per_bar_close)
+
+// ───────────────────────────── QUALIFYING-IMPULSE GATE ─────────────────────────────
+// Domain Model Origin_Point_Detection fallback rule (rule 2), relaxed: a candidate origin candle
+// only becomes an OB if some candle CLOSE within dispGateBars after it displaces >= dispGateATR
+// x ATR(14, taken at the origin bar) from the origin's extreme. The strict Domain Model form
+// additionally requires every candle in the leg to close in the reversal direction — that form
+// was tested and rejected 5 of the 13 known labeled events, so only the displacement magnitude
+// is enforced here.
+
+// Zone-size gate: reject dimple candles in flat consolidation outright.
+zoneOK(int originOff) =>
+    minZoneATR <= 0 or (high[originOff] - low[originOff]) >= minZoneATR * atr14[originOff]
+
+// Has the candle at offset candleOff satisfied the displacement requirement, measured from the
+// origin candle at offset originOff? ATR is referenced at the ORIGIN bar so the threshold is
+// fixed at formation time, not drifting with later volatility.
+dispPassedAt(int originOff, int candleOff, bool isBull) =>
+    need = dispGateATR * atr14[originOff]
+    isBull ? (close[candleOff] - low[originOff]) >= need : (high[originOff] - close[candleOff]) >= need
+
+// Gate verdict for a freshly-confirmed pivot: 1 = create now, 0 = park as pending (window not
+// yet exhausted), -1 = reject.
+gateVerdict(bool isBull) =>
+    result = -1
+    if not zoneOK(pivotK)
+        result := -1
+    else if dispGateATR <= 0
+        result := 1
+    else
+        passed = false
+        // candles between the origin and the current (confirmation) bar are already known:
+        // origin+m sits at offset pivotK-m. Check every one inside the gate window.
+        for m = 1 to math.min(dispGateBars, pivotK)
+            if dispPassedAt(pivotK, pivotK - m, isBull)
+                passed := true
+        if passed
+            result := 1
+        else if pivotK >= dispGateBars
+            result := -1  // whole window already elapsed without displacement
+        else
+            result := 0   // later bars may still satisfy it — park and re-check
+    result
+
+// Create the OB plus its optional stacked-run backfill, from an arbitrary origin offset (the
+// offset is pivotK for immediate creations, larger for gate-delayed ones).
+createWithStack(int originOff, bool isBull) =>
+    createOB(originOff, isBull, float(na))
+    if stackDepth > 0
+        for t = 1 to stackDepth
+            // walk further back from the origin bar; each step must be a new local extreme vs.
+            // the one before it, i.e. a monotonic run leading INTO the origin candle. The impulse
+            // gate is NOT re-evaluated per backfilled candle — a passing pivot validates its run
+            // as one zone (matching how clustered 15m blocks were labeled in the dataset).
+            stepOK = isBull ? low[originOff + t] > low[originOff + t - 1] : high[originOff + t] < high[originOff + t - 1]
+            if stepOK
+                createOB(originOff + t, isBull, float(na))
+            else
+                break
+
+// ───────────────────────────── VARIATION 2 DETECTION ─────────────────────────────
+// 3:50 Scalp Entry Model, Variation 2 — verified pattern (24 Apr & 17 Apr 15:50, and the labeled
+// Jun 11 case): a candle inside the formation window sweeps the previous candle's extreme, closes
+// in the opposing direction, and the NEXT candle closes beyond its full range. The origin is the
+// sweeping candle (offset 1); the current bar is its confirmation. That confirmation close beyond
+// the origin's entire range IS this pattern's qualifying impulse, so the pivot + displacement
+// gates are deliberately bypassed — 17 Apr displaces only 1.41xATR and fails the generic gate,
+// yet is a verified example.
+// Strict activation: the confirmation candle's own wick already pokes beyond the zone, so under
+// standard activation the very first pullback would count as the return and mitigate the box
+// almost immediately (17 Apr would die at 16:00 instead of surviving to its actual 17:30
+// mitigation). These boxes therefore require a candle CLOSE beyond the confirmation candle's
+// extreme — the reversal must extend past the initial impulse — before returns count. Verified:
+// with this rule, 17 Apr activates 16:20 and mitigates 17:30, and Jun 11 still mitigates at its
+// labeled 18:20 candle.
+if enableV2 and bar_index > 2 and inV2Window[1]
+    // bullish: origin swept the prior low, closed bearish, confirmation closed above its high
+    if low[1] < low[2] and close[1] < open[1] and close > high[1]
+        createOB(1, true, high)
+    // bearish mirror: swept the prior high, closed bullish, confirmation closed below its low
+    if high[1] > high[2] and close[1] > open[1] and close < low[1]
+        createOB(1, false, low)
+
+// Re-check parked candidates FIRST (they are strictly older than any pivot confirming this bar).
+if array.size(pendingCandidates) > 0
+    for i = array.size(pendingCandidates) - 1 to 0
+        pc = array.get(pendingCandidates, i)
+        age = bar_index - pc.originBar
+        if age <= dispGateBars and dispPassedAt(age, 0, pc.isBull)
+            createWithStack(age, pc.isBull)
+            array.remove(pendingCandidates, i)
+        else if age >= dispGateBars
+            // window exhausted without a qualifying displacement — candidate discarded, mirroring
+            // the Domain Model's "no origin_point is marked for this sweep" outcome (rule 3)
+            array.remove(pendingCandidates, i)
+
+// A candle that's simultaneously the local extreme in BOTH directions (pivot low AND pivot high at once)
+// is a sign of tight, directionless chop, not a clean directional origin point. Skip both rather than
+// creating two boxes with identical boundaries that contradict each other (one "support", one "resistance").
+dualTagged = not na(pl) and not na(ph)
+
+if not dualTagged and not na(pl)
+    // pivot low confirmed pivotK bars ago -> bullish OB candidate
+    v = gateVerdict(true)
+    if v == 1
+        createWithStack(pivotK, true)
+    else if v == 0
+        array.push(pendingCandidates, Pending.new(bar_index - pivotK, true))
+
+if not dualTagged and not na(ph)
+    v = gateVerdict(false)
+    if v == 1
+        createWithStack(pivotK, false)
+    else if v == 0
+        array.push(pendingCandidates, Pending.new(bar_index - pivotK, false))
+
+// ───────────────────────────── ACTIVATION CHECK (has price displaced away yet?) ─────────────────────────────
+checkActivation(OB ob) =>
+    activated = false
+    if not na(ob.actEdge)
+        // strict Variation 2 activation: candle CLOSE beyond the confirmation candle's extreme
+        // (see Variation 2 Detection above for why wick-vs-zone activation fails this pattern)
+        activated := ob.isBull ? close > ob.actEdge : close < ob.actEdge
+    else
+        buffer = activationBufferATR * atr14
+        if ob.isBull
+            probe = activationMethod == "Wick" ? high : close
+            activated := probe > ob.top + buffer
+        else
+            probe = activationMethod == "Wick" ? low : close
+            activated := probe < ob.bot - buffer
+    activated
+
+// ───────────────────────────── MITIGATION CHECK + BOX EXTEND ─────────────────────────────
+checkMitigation(OB ob) =>
+    zoneHeight = ob.top - ob.bot
+    threshold = ob.isBull ? ob.top - zoneHeight * (mitigationFillPct / 100.0) : ob.bot + zoneHeight * (mitigationFillPct / 100.0)
+    touched = false
+    if ob.isBull
+        probe = mitigationMethod == "Wick" ? low : close
+        touched := probe <= threshold
+    else
+        probe = mitigationMethod == "Wick" ? high : close
+        touched := probe >= threshold
+    touched
+
+processArray(OB[] arr) =>
+    if array.size(arr) > 0
+        for i = array.size(arr) - 1 to 0
+            ob = array.get(arr, i)
+            if not ob.mitigated
+                // Step 1: not yet activated -> only check whether price has now displaced away.
+                // A touch/overlap while inactive is expected (it's freshly-formed price) and never counts as mitigation.
+                if not ob.activated
+                    if checkActivation(ob)
+                        ob.activated := true
+                    box.set_right(ob.b, bar_index + extendBars)
+                // Guard: never let an OB mitigate on the very same bar it was instantiated on.
+                // Otherwise disabling "Require Activation" reintroduces the original self-mitigation bug —
+                // the OB's own origin-candle range would trivially satisfy the fill threshold immediately.
+                else if ob.createdBar == bar_index
+                    box.set_right(ob.b, bar_index + extendBars)
+                // Step 2: activated -> now a return into the zone genuinely counts as mitigation. Delete immediately.
+                else if checkMitigation(ob)
+                    ob.mitigated := true
+                    box.delete(ob.b)
+                    array.remove(arr, i)
+                    if alertOnMit
+                        alert((ob.isBull ? "Bullish" : "Bearish") + " Order Block mitigated", alert.freq_once_per_bar_close)
+                else
+                    box.set_right(ob.b, bar_index + extendBars)
+
+processArray(bullBoxes)
+processArray(bearBoxes)
+
+// ───────────────────────────── DAY-BOUNDARY CLEANUP (drop anything not from today) ─────────────────────────────
+isSameCalendarDay(int t1, int t2) =>
+    tz = useSessionFilter ? sessionTZ : syminfo.timezone
+    dayofmonth(t1, tz) == dayofmonth(t2, tz) and month(t1, tz) == month(t2, tz) and year(t1, tz) == year(t2, tz)
+
+cleanupArray(OB[] arr) =>
+    if array.size(arr) > 0
+        for i = array.size(arr) - 1 to 0
+            ob = array.get(arr, i)
+            if not isSameCalendarDay(ob.originTime, time)
+                box.delete(ob.b)
+                array.remove(arr, i)
+
+cleanupArray(bullBoxes)
+cleanupArray(bearBoxes)
+
+// ───────────────────────────── MAX-AGE CLEANUP (drop anything older than maxAgeHours) ─────────────────────────────
+ageLimitMs = maxAgeHours * 60 * 60 * 1000
+
+ageCleanupArray(OB[] arr) =>
+    if maxAgeHours > 0 and array.size(arr) > 0
+        for i = array.size(arr) - 1 to 0
+            ob = array.get(arr, i)
+            if (time - ob.originTime) > ageLimitMs
+                box.delete(ob.b)
+                array.remove(arr, i)
+
+ageCleanupArray(bullBoxes)
+ageCleanupArray(bearBoxes)
+
+// ───────────────────────────── SESSION VISIBILITY (everything left is today + still unmitigated) ─────────────────────────────
+// Distance from current close to the zone: 0 if price is inside it, else distance to the nearest edge.
+zoneDistance(OB ob) =>
+    close >= ob.bot and close <= ob.top ? 0.0 : math.min(math.abs(close - ob.top), math.abs(close - ob.bot))
+
+applyVisibility(OB[] arr) =>
+    if array.size(arr) > 0
+        for i = 0 to array.size(arr) - 1
+            ob = array.get(arr, i)
+            nearEnough = not useProximityFilter or zoneDistance(ob) <= proximityATR * atr14
+            // Variation 2 boxes stay visible after the session window: their mitigation (the
+            // entry trigger) arrives 45min-2h20m later in all verified examples, so hiding them
+            // at the window's end would make the setup untradeable. Day-boundary and max-age
+            // cleanup still remove them eventually.
+            v2Extended = keepV2Visible and ob.isV2
+            if (inSession or v2Extended) and nearEnough
+                liveColor = ob.isBull ? bullColor : bearColor
+                box.set_bgcolor(ob.b, liveColor)
+                box.set_border_color(ob.b, color.new(liveColor, 0))
+            else
+                box.set_bgcolor(ob.b, color.new(color.black, 100))
+                box.set_border_color(ob.b, color.new(color.black, 100))
+
+applyVisibility(bullBoxes)
+applyVisibility(bearBoxes)
+
+// ───────────────────────────── DEBUG EXPORT PLOTS ─────────────────────────────
+// One row per bar in "Export chart data…": up to two creations per side, plus a count.
+// A count above 2 means a third creation happened on that bar and overflowed the slots —
+// enumerate that bar by hand. display.data_window keeps the chart scale untouched.
+dbgAt(float[] arr, int idx) =>  // DEBUG
+    array.size(arr) > idx ? array.get(arr, idx) : na
+
+plot(array.size(dbgBullTop), "bull_created_count", display=display.data_window, precision=0)  // DEBUG
+plot(dbgAt(dbgBullTop, 0),  "bull_top_1",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBullBot, 0),  "bull_bot_1",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBullTime, 0), "bull_origin_ms_1",   display=display.data_window, precision=0)   // DEBUG
+plot(dbgAt(dbgBullV2, 0),   "bull_isV2_1",        display=display.data_window, precision=0)   // DEBUG
+plot(dbgAt(dbgBullTop, 1),  "bull_top_2",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBullBot, 1),  "bull_bot_2",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBullTime, 1), "bull_origin_ms_2",   display=display.data_window, precision=0)   // DEBUG
+plot(dbgAt(dbgBullV2, 1),   "bull_isV2_2",        display=display.data_window, precision=0)   // DEBUG
+plot(array.size(dbgBearTop), "bear_created_count", display=display.data_window, precision=0)  // DEBUG
+plot(dbgAt(dbgBearTop, 0),  "bear_top_1",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBearBot, 0),  "bear_bot_1",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBearTime, 0), "bear_origin_ms_1",   display=display.data_window, precision=0)   // DEBUG
+plot(dbgAt(dbgBearV2, 0),   "bear_isV2_1",        display=display.data_window, precision=0)   // DEBUG
+plot(dbgAt(dbgBearTop, 1),  "bear_top_2",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBearBot, 1),  "bear_bot_2",         display=display.data_window)                // DEBUG
+plot(dbgAt(dbgBearTime, 1), "bear_origin_ms_2",   display=display.data_window, precision=0)   // DEBUG
+plot(dbgAt(dbgBearV2, 1),   "bear_isV2_2",        display=display.data_window, precision=0)   // DEBUG

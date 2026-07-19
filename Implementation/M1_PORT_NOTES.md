@@ -68,7 +68,26 @@ labelled "Detector origin detected: NO").
 | 1. Run on the Tier 1 span | DONE |
 | 2–3. Box-by-box match vs Pine on TradingView | **BLOCKED — needs the trader to run the Pine on the same span and supply its boxes** (`output/pine_port_boxes.csv` is the comparison artifact; mismatches to be enumerated individually) |
 | 4. ~3.2/day, hard bound <10/day | DONE — 3.28/day |
-| 5. Label recall reported, not gated | DONE — 9/9 FULL_5M |
+| 5. Label recall reported, not gated | DONE — 9/9 FULL_5M (v3 xlsx ruled authoritative 2026-07-19) |
+
+### Export tooling for steps 2–3
+
+`Detection_Methods/order_blocks_v2_debug_export (26.07.19).pine` is a copy of the
+working indicator whose ONLY additions (lines marked `// DEBUG`) record each
+box creation and plot it — per side, two slots of top / bottom / origin
+unix-ms / isV2 plus a created-count (count > 2 on a bar means a slot
+overflowed; enumerate that bar by hand). Rows land in TradingView's
+"Export chart data…" CSV for diffing against `output/pine_port_boxes.csv`.
+The working indicator is untouched; the debug plots live only in the copy.
+
+**Compile status: NOT YET VERIFIED.** Three attempts to compile it on
+tradingview.com through the sandboxed in-app browser all hard-froze the page
+the moment "Add to chart" was pressed (anonymous session, FX:GBPJPY 5m; the
+script inserted cleanly each time — 29,779 chars, 426 lines). The trader
+needs to paste the file into their own Pine Editor once: any compile error
+plus the data-window values on 2–3 creation bars is enough to close
+verification. If "Export chart data…" omits the DEBUG columns, change
+`display=display.data_window` to `display=display.all` in the copy only.
 
 ## Flagged, not changed (per NEXT_STEP.md scope rule)
 
