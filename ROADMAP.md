@@ -12,7 +12,7 @@ Module map follows `Architecture.md`'s components. A module is DONE only when it
 | # | Module | State | Blocked by |
 |---|---|---|---|
 | M0 | Repo hygiene & guardrails | **DONE** 2026-07-19 | — |
-| M1 | Detection engine | in progress — port done, gate pending Pine comparison | trader: TradingView boxes + label-set answer |
+| M1 | Detection engine | in progress — port done, gate run 2026-07-26 (scoped); 32 window-live divergences to close | punch list: `NEXT_STEP.md` |
 | M2 | Entry engine | logic validated, unwired | M1 |
 | M3 | Trade management | **specification missing** | trader input |
 | M4 | Backtest & evaluation | protocol written, no code | M1, M2, M3 |
@@ -26,9 +26,12 @@ Module map follows `Architecture.md`'s components. A module is DONE only when it
 ## M1 — Detection engine
 **Goal.** Port `Detection_Methods/order_blocks_v2 (26.07.17).pine` to Python, line by line.
 **Explicitly not.** Inventing, improving, or inferring detection logic. This is translation.
-**Gate.** On a Tier 1 span, the Python emits the same boxes as the Pine on TradingView: same
-origin bars, same bounds, same bull/bear, same Variation-2 classification. Disagreements are
-enumerated individually, not summarised as a percentage.
+**Gate.** On a Tier 1 span, the Python emits the same boxes as the Pine on TradingView — same
+origin bars, bounds, bull/bear, Variation-2 flag — for every box **live during the display
+window** (15:15–16:15 Europe/London; scoped 2026-07-26, see Decision Log). Off-session boxes are
+enumerated and out of scope. Disagreements listed individually, never as a percentage.
+**Status:** run 2026-07-26 — geometry and all 9 labels agree; 32 window-live divergences remain
+(26 `isV2`, 5 misses, 1 invent). See `Implementation/RECONCILIATION_M1.md`.
 **Watch.** Pine's label set is 13 events / 17 examples; `main_Tier_1_Examples_v3.xlsx` has 12.
 Establish which is authoritative before treating either as ground truth.
 

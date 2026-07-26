@@ -7,7 +7,8 @@ Date: 2026-07-19
 | Layer | File | Status |
 |---|---|---|
 | Strategy / entry layer | `pipeline.py` | **VALIDATED.** Given correct zones, reproduces every rule-qualified Tier 1 entry with exact times, correctly rejects T1-005 and T1-007. |
-| Detection layer | `detect.py`, `swings.py` | **FAILED. Do not use.** Retained only as a record of what was tried. |
+| Detection layer (old) | `detect.py`, `swings.py` | **FAILED. Do not use.** Retained only as a record of what was tried. |
+| Detection layer (M1 port) | `pine_port.py`, `run_pine_port.py` | **Gate run 2026-07-26 — geometry faithful (0 bounds mismatches), all 9 labels agree.** Not yet passed: 32 window-live divergences (26 `isV2`, 5 misses, 1 invent). Punch list in `NEXT_STEP.md`; detail in `RECONCILIATION_M1.md`. |
 
 ## Why detection failed
 `detect.py` was written by reverse-engineering the twelve labelled examples, because the author

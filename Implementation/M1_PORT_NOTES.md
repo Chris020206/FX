@@ -66,9 +66,17 @@ labelled "Detector origin detected: NO").
 | Step | Status |
 |---|---|
 | 1. Run on the Tier 1 span | DONE |
-| 2–3. Box-by-box match vs Pine on TradingView | **BLOCKED — needs the trader to run the Pine on the same span and supply its boxes** (`output/pine_port_boxes.csv` is the comparison artifact; mismatches to be enumerated individually) |
+| 2–3. Box-by-box match vs Pine on TradingView | **RUN 2026-07-26** — full span, real warmup, port fed the Pine's own OHLC. 845 agree / 281 disagree. Gate **scoped** to window-live boxes (Decision Log 2026-07-26): on that set 32 disagree, so **NOT yet passed**. Full enumeration: `Implementation/RECONCILIATION_M1.md` + `output/pine_vs_port_reconciliation.csv`. |
 | 4. ~3.2/day, hard bound <10/day | DONE — 3.28/day |
-| 5. Label recall reported, not gated | DONE — 9/9 FULL_5M (v3 xlsx ruled authoritative 2026-07-19) |
+| 5. Label recall reported, not gated | DONE — 9/9 FULL_5M (v3 xlsx ruled authoritative 2026-07-19); all 9 confirmed to agree box-for-box with the Pine on 2026-07-26 |
+
+### Reconciliation summary (2026-07-26)
+Zero bounds mismatches anywhere — geometry is a faithful port. All 9 labels agree exactly. The
+32 window-live disagreements are the M1 punch list: **5 missed boxes + 1 invented box** (marginal
+displacement / min-zone gate) and **26 `isV2` over-flags**. Root cause of the `isV2` gap: the
+Pine's flag tracks the V2 *creation path*, not window membership (which is what the port and the
+Pine's own source comment use); the exact `barOffset` assignment is not yet traced — read
+`createOB` against `pine_port.py` before fixing. See `RECONCILIATION_M1.md`.
 
 ### Export tooling for steps 2–3
 
@@ -98,12 +106,13 @@ failed because programmatic text insertion let Monaco auto-indent corrupt the
 script; a real clipboard paste inserts it verbatim. Paste via Ctrl+V if the
 script ever needs re-entering.
 
-**Export step (trader):** on the "M1 Debug Export" layout, load the chart
-back to 2026-05-24, then "Export chart data…" — the DEBUG columns carry one
-row per bar. If the export omits them, change `display=display.data_window`
-to `display=display.all` in the copy only. Historical boxes are not visible
-on the chart (the Pine deletes them during replay); the plot columns are the
-comparison record.
+**Export step (trader) — DONE 2026-07-26.** Three exports supplied. The first was on the
+FOREX.com feed (wrong — 0/7,437 bars matched FXCM) and discarded. Two FXCM exports
+(`FX_GBPJPY__5__12_` Jun 7→Jul 24, `FX_GBPJPY__5__13_` Apr 19→Jun 5) stitch across the closed
+Jun 5→7 weekend into a continuous Apr 19→Jul 24 series that covers the whole gate span with real
+warmup. TradingView's bar-buffer limit means no single export reaches back far enough; two
+overlapping exports are the way to get full coverage. The Apr 19→Jun 5 chunk matches the gate CSV
+exactly (Δ=0); the later chunk has ~700 minor feed-revision bars (max Δ 0.037).
 
 ## Flagged, not changed (per NEXT_STEP.md scope rule)
 

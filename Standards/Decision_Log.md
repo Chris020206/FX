@@ -97,3 +97,49 @@ immediately fair game.
 **Trigger to revisit**: real detection/trade-management code exists and is ready to be tested
 end-to-end. At that point, the reserved tier gets used for exactly that, and this decision is
 fulfilled rather than reversed.
+
+---
+
+## 2026-07-26 — M1 gate scoped to display-window agreement (not bit-identical)
+
+**What was considered.** The pre-committed M1 gate (`ROADMAP.md`, `NEXT_STEP.md`) required the
+Python port to reproduce the Pine's boxes exactly — origin bar, both bounds, direction, `isV2` —
+for **every** box over the Tier 1 span, with disagreements enumerated individually. Gate steps 2–3
+were run for the first time on 2026-07-26 (full span, real warmup, port fed the Pine's own OHLC;
+see `Implementation/RECONCILIATION_M1.md`). Result: 845 boxes agree exactly, **281 disagree**, so
+the gate as written does not pass.
+
+**What was decided instead.** The trader ruled that bit-identity on **off-session** boxes is too
+strict, because the strategy only ever sees boxes that are **live during the display window**
+(visible on ≥1 bar whose open is in 15:15–16:15 Europe/London). The gate is therefore scoped to
+that set: the port must reproduce the Pine's boxes (origin, bounds, direction, `isV2`) for every
+**window-live** box; off-session divergences are enumerated in
+`Implementation/output/pine_vs_port_reconciliation.csv` and accepted as out of scope.
+
+The relevance test is the *live-in-window* criterion, **not** origin-in-window — Variation-1 setups
+form before the window and mitigate inside it, so an origin-time filter would wrongly exclude them.
+
+**Why.** Of the 281 divergences, 222 are off-session marginal-gate flicker on boxes the strategy
+never displays or trades, and are sensitive to sub-pip feed revisions between the gate CSV and a
+live TradingView export. Requiring bit-identity there tests behaviour the strategy does not use.
+
+**Honesty guard — this is scope refinement, not moving the goalposts to pass.** It was decided
+*after* seeing results, so it is recorded explicitly here rather than silently edited into the
+gate. Crucially, **it does not make M1 pass.** On the scoped (window-live) set there are still
+**32 disagreements**: 5 boxes the port misses, 1 it invents (all marginal displacement/min-zone
+gate cases), and 26 `isV2` over-flags (one root cause — see below). Those 32 are the M1 punch list;
+the original 281-row enumeration is preserved in the CSV and is not deleted.
+
+**What is genuinely established (not waived).** Zero bounds mismatches anywhere (geometry is a
+faithful port); all 9 FULL_5M labelled examples agree exactly.
+
+**`isV2` root cause (partially open).** The Pine's emitted `isV2` tracks the V2 *creation path*
+(structural sweep pattern), not window membership as its own source comment states; the port sets
+`isV2` from window membership and over-flags in-window pivot boxes. Direction is evidenced (23/26);
+the exact `barOffset` assignment on the delayed/pending path is **not yet traced** and must be read
+from `createOB` against `pine_port.py` before the fix — do not infer it.
+
+**Trigger to revisit.** (a) The `isV2` and displacement-gate punch-list items are fixed and the
+window-live set reaches full agreement; or (b) a clean single-feed full-span export removes the
+~700 off-session feed-revision bars, at which point the off-session divergence count should be
+re-measured rather than assumed.
