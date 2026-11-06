@@ -40,7 +40,7 @@ Improving, simplifying, or "fixing" the detection logic. Anything that looks wro
 in the PR description, not changed**. Also out of scope: entry, exit, and anything touching Tier 2.
 
 ### Acceptance gate — pre-committed; SCOPED 2026-07-26 (see Decision Log)
-1. Run against `DATASET/csv/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv`.
+1. Run against `DATASET/GBPJPY SPOT/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv`.
 2. Compare boxes against the Pine's output on TradingView over the same span.
 3. **Pass:** every **window-live** box matches on origin bar, both bounds, direction, and V2 flag.
    "Window-live" = the box is visible on ≥1 bar whose open is in 15:15–16:15 Europe/London

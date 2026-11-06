@@ -11,7 +11,7 @@ from core import load_csv, atr_wilder
 from swings import detect_swings
 from detect import detect_origin_points
 
-CSV = "../DATASET/csv/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv"
+CSV = "../DATASET/GBPJPY SPOT/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv"
 
 # lid, date, dir, v3 lower, v3 upper, zone_type, v3 origin time UTC (HH:MM)
 LABELS = [
