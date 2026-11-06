@@ -1,1 +1,3 @@
 ﻿__pycache__/
+DATASET/**/*.zip
+.claude/settings.local.json
