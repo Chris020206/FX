@@ -24,7 +24,7 @@ Detection (how an order block is found)
 Strategy (thresholds, window, entry)
     Strategy_Library/.../dev/GBPJPY_1550_Model_Tier_1_Rulebook_v1.4.docx
 Labels
-    DATASET/csv/main_Tier_1_Examples_v3.xlsx
+    DATASET/GBPJPY SPOT/main_Tier_1_Examples_v3.xlsx
 Everything else
     see the STATUS header at the top of each .md file
 ```
@@ -66,8 +66,8 @@ Corollaries:
 
 | Tier | Location | Use |
 |---|---|---|
-| Tier 1 | `DATASET/csv/Tier 1/` | Calibration. Rules were built here. Free to use. |
-| Tier 2 | `DATASET/csv/Tier 2/` | **Held out.** Blind validation, spent ONCE, after freeze. |
+| Tier 1 | `DATASET/GBPJPY SPOT/Tier 1/` | Calibration. Rules were built here. Free to use. |
+| Tier 2 | `DATASET/GBPJPY SPOT/Tier 2/` | **Held out.** Blind validation, spent ONCE, after freeze. |
 | Tier 3 | **not in this repo** | Reserved for end-to-end code testing. Deliberately absent. |
 
 Do not read, load, glob, or evaluate against Tier 2 unless the task explicitly says "spend Tier 2".
@@ -76,6 +76,10 @@ off-limits: loose instructions not to look are weaker than not having the data.
 
 If you re-tune anything after seeing Tier 2 results, Tier 2 has become calibration data. Say so
 loudly and record it in the Decision Log.
+
+The table above covers **GBP/JPY spot only**. `DATASET/Futures/` (raw files local-only, see its
+README) has **no tier split yet**. Do not calibrate, tune or fit on futures data until the trader
+has defined one and it is recorded here and in the Decision Log.
 
 **CSV handling:** raw UNIX timestamps. Never open in a spreadsheet application — Sheets and Excel
 silently reformat the timestamp column as a duration and corrupt it. Read programmatically.

@@ -44,7 +44,7 @@ that sample **without spending Tier 2**. Do this before touching held-out data.
 - Re-tuning after seeing Tier 2 converts Tier 2 into calibration data. If that happens, say so in
   the Decision Log and treat Tier 3 as the only remaining held-out set.
 
-> The existing 38-candidate scan in `DATASET/csv/Tier 2/Blind Detection Result Tier 2/` predates
+> The existing 38-candidate scan in `DATASET/GBPJPY SPOT/Tier 2/Blind Detection Result Tier 2/` predates
 > the v3 corrections and the current thresholds. It is void as a scoring artifact and must not be
 > counted as Tier 2 having been spent.
 

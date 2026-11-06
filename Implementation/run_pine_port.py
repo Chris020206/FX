@@ -1,7 +1,7 @@
 """Run the Pine v2.2 port over a Tier 1 CSV and report the M1 gate inputs.
 
 Usage:
-    python Implementation/run_pine_port.py "DATASET/csv/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv"
+    python Implementation/run_pine_port.py "DATASET/GBPJPY SPOT/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv"
 
 Outputs:
     Implementation/output/pine_port_boxes.csv   — every box the port created,
@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from pine_port import Bars, Detector, SESSION_TZ
 
 REPO = Path(__file__).resolve().parent.parent
-LABELS_XLSX = REPO / "DATASET" / "csv" / "main_Tier_1_Examples_v3.xlsx"
+LABELS_XLSX = REPO / "DATASET" / "GBPJPY SPOT" / "main_Tier_1_Examples_v3.xlsx"
 OUT_CSV = Path(__file__).parent / "output" / "pine_port_boxes.csv"
 
 
@@ -152,5 +152,5 @@ def main(csv_path: str) -> None:
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else
-         str(REPO / "DATASET" / "csv" / "Tier 1" /
+         str(REPO / "DATASET" / "GBPJPY SPOT" / "Tier 1" /
              "FX_GBPJPY, 5m, 24 may - 13 july.csv"))

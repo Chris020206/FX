@@ -19,7 +19,7 @@
 
 - Date: 2026-07-19
 - Status: **Analysis only. No rule adopted. Requires your decision.**
-- Data: `DATASET/csv/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv`, raw 5m bars, UTC+0
+- Data: `DATASET/GBPJPY SPOT/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv`, raw 5m bars, UTC+0
 - Method: zone bounds, thresholds and directions taken verbatim from `main_Tier_1_Examples_v3.xlsx`;
   penetration recomputed from raw OHLC per Tier 1 Rulebook §4.2
 

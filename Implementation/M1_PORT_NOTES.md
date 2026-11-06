@@ -44,7 +44,7 @@ the 3.2/day metric counts.
 
 ## Self-run on the gate file (gate steps 1 and 4)
 
-`DATASET/csv/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv` — 10,307 bars, 36 days
+`DATASET/GBPJPY SPOT/Tier 1/FX_GBPJPY, 5m, 24 may - 13 july.csv` — 10,307 bars, 36 days
 with display-window bars.
 
 - Boxes created: 980 (530 bull / 450 bear, 38 with the isV2 origin-timing flag)
